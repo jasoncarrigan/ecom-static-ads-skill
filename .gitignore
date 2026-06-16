@@ -1,0 +1,13 @@
+# Generated run outputs — don't commit
+ad-workspace/
+
+# Secrets — keys live in the shell, never in the repo
+.env
+*.env
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
