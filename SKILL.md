@@ -2,7 +2,8 @@
 name: ecom-static-ads
 description: >-
   Generate 4 scroll-stopping static (single-image) e-commerce ad creatives from a single store link — a product page
-  (PDP) or a collection/listing page (PLP). The skill reads the page (pulling product names, prices, promos, benefits,
+  (PDP) or a collection/listing page (PLP). The skill learns the store's brand identity (logo, colors, fonts, voice) —
+  asking the user for it when it can't be found — reads the page (pulling product names, prices, promos, benefits,
   the real product photos, and the product's own on-site customer reviews), researches the customer with deep
   review-mining across the store's own reviews and external sites, studies competitor ads via the Facebook Ads Library,
   sources reference imagery via Tavily, and generates the finished ad images with Nano Banana 2 (Gemini) using the real
@@ -27,6 +28,36 @@ about **half a second** to earn the scroll-stop — every decision flows from th
 The one change from a photo-based brief: **your input is a store link, not an uploaded image.** You'll read the page
 yourself to learn the product and pull its real photos. That makes the product accurate *and* gives you the page's copy,
 price, promo, and reviews as raw material.
+
+---
+
+## PHASE 0 — Lock the brand identity (cached)
+
+Before reading the product page, establish a **Brand Profile** so every ad carries the store's real identity — logo/
+wordmark, color palette (hex), typography vibe, and voice/tone. Ads that ignore the brand look like generic stock; ads
+grounded in it look like the brand made them. This is a research gate: print the profile before moving on.
+
+1. **Check the cache first.** If `./brand/brand-profile.md` exists, don't silently reuse it — surface it and confirm:
+   *"I found a saved brand profile here: `brand/brand-profile.md` (saved <date>). Use it, or refresh it?"* If the user
+   says use it, load it and move to Phase 1.
+2. **If absent or stale, source it** in this priority order:
+   - **Supplied brand assets** — a style guide, brand doc, logo file, or PDF the user provides.
+   - **Figma** — if the user shares a Figma link and Figma tools are available, pull colors, type styles, and the logo.
+   - **Scrape the live store** — you're already fetching the site in Phase 1; pull the homepage too and extract the logo,
+     the dominant brand colors (hex), the fonts, and the voice from on-site copy. Download the logo/wordmark to
+     `./brand/` at the highest resolution available (transparent PNG or SVG preferred) so it can be placed in ads.
+3. **If you still can't determine the brand, ask the user rather than guessing.** Request what's missing — ideally the
+   logo file (or a link to it), the 2–4 brand colors as hex, the brand fonts, and a one-line voice/tone description.
+   Never invent a brand identity.
+4. **Save `./brand/brand-profile.md`** with a timestamp and print the Brand Profile: logo path, color hex list, fonts,
+   voice/tone, and any do/don'ts. The `brand/` folder is local to the user's working directory and **must never be
+   committed to the public skill repo** (it's git-ignored).
+
+**How the brand threads through the ads:** the bold, single-color "world" per ad (the scroll-stop) keeps creative
+latitude — but it should **use or deliberately complement the brand palette**, the **logo/wordmark appears** on the
+creative (small, in a corner, unless the user says otherwise), the **copy voice matches** the brand's tone, and the
+text-overlay typography echoes the brand fonts. Brand consistency lives here so the 4 ads feel unmistakably like this
+store. Carry the Brand Profile into Phase 4 (copy + color worlds) and Phase 6 (generation).
 
 ---
 
@@ -154,7 +185,9 @@ Miniature/Diorama · Ingredient/Component Explosion.
 
 ### Brief each of the 4 variations
 
-For a PLP, give each variation its featured product (or "whole collection") so the 4 ads span the range. For each:
+Ground every concept in the **Brand Profile from Phase 0** — write copy in the brand's voice, build each color world to
+use or complement the brand palette, and plan where the logo/wordmark sits. For a PLP, give each variation its featured
+product (or "whole collection") so the 4 ads span the range. For each:
 
 1. **Concept** — one sentence.
 2. **Creative type** — from the menu (≥2 ★ across the set).
@@ -205,7 +238,10 @@ Gemini API, model `gemini-3-pro-image-preview` (Nano Banana 2), key `GEMINI_API_
 > "REFERENCE IMAGE 1 is the ACTUAL product. Reproduce it with photographic accuracy — exact shape, materials, colors,
 > branding, and text/logos must match. Do not redesign it."
 
-Then add style/composition references as REFERENCE 2, 3.
+Then add style/composition references as REFERENCE 2, 3. **If a brand logo/wordmark was captured in Phase 0**, pass it as
+an additional reference and instruct the model to place it cleanly (e.g. small, in a corner) and reproduce it exactly —
+do not redraw or restyle it. Commit each color world to the brand palette hexes from the Brand Profile (or a deliberate
+complement), and keep the copy in the brand voice.
 
 **Prompt like a creative director, not a keyword list:** role-set ("world-class advertising art director shooting a
 [format] campaign for [brand]") → lead with the concept → commit to the exact color world and hex → camera + lens
@@ -259,6 +295,9 @@ placement, and next steps.
 - `TAVILY_API_KEY` (optional) — fall back to WebSearch with images.
 - `SCRAPE_CREATORS_API_KEY` (optional) — fall back to WebSearch for competitor ads.
 - The page link is required — if none is given, ask for the PDP or PLP URL before starting.
+- **Brand Profile** (Phase 0) is cached at `./brand/brand-profile.md` with the logo in `./brand/`. Reuse when present
+  (confirm with the user), source from supplied assets → Figma → live-site scrape when absent, and **ask the user** if it
+  still can't be determined. The `brand/` folder is local-only and git-ignored — never commit it to the skill repo.
 - Prefer `python3`; fall back to `python`.
 
 ---
@@ -272,4 +311,6 @@ placement, and next steps.
 - **Four distinct voices.** If the 4 ads feel like one team made them, push harder on variation.
 - **Build worlds, not product shots.** Commit fully to one color world per ad.
 - **Real product, real claims.** Match the photo with fidelity; only use prices/promos that are true on the page.
+- **On-brand, not off-the-shelf.** Bold color worlds, but built on the store's real palette, logo, and voice — never a
+  brand identity you invented. If you can't find it, ask.
 - **Make it sharable.** The best ad is one screenshot from a group chat.

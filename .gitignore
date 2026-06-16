@@ -1,6 +1,9 @@
 # Generated run outputs — don't commit
 ad-workspace/
 
+# Cached brand profile + logo — local to each store, never commit
+brand/
+
 # Secrets — keys live in the shell, never in the repo
 .env
 *.env
