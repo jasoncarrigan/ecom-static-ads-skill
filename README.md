@@ -12,9 +12,9 @@ This is a PDP/PLP-driven take on AI ad creative: instead of uploading a product 
 
 > *"Help me set this skill up. Walk me through the keys I need and store them safely on my machine."*
 
-Claude will tell you the keys, help you store them in your shell config, and have you restart once.
+Claude will tell you the keys, give you the commands to store them in your **macOS Keychain** (encrypted at rest), add one line to your shell config that reads them back into env vars, and have you restart once.
 
-**⚠️ Security note — treat keys like passwords.** Add them yourself in your own terminal, never paste keys into a chat. Rotate them after setup, and never commit any env file to Git.
+**⚠️ Security note — treat keys like passwords.** Add them yourself in your own terminal, never paste keys into a chat. Store them in the **macOS Keychain** (see [Manual install](#-manual-install)) rather than as plaintext in `~/.zshrc` — that keeps them encrypted at rest and out of any dotfiles you might commit. Rotate them after setup.
 
 ---
 
@@ -74,17 +74,32 @@ curl -sL https://raw.githubusercontent.com/jasoncarrigan/ecom-static-ads-skill/m
   -o ~/.claude/skills/ecom-static-ads/SKILL.md
 ```
 
-Then add to `~/.zshrc` (or `~/.bashrc`):
+Then store your keys. **Don't put them as plaintext in `~/.zshrc`** — that file is easy to accidentally commit and isn't encrypted. On macOS, put them in the **Keychain** and have your shell read them back at startup.
+
+**1. Save each key into the Keychain** (run in your own terminal, swap in your real values). `-U` lets you re-run to update a key later:
 
 ```
-export GEMINI_API_KEY="..."
-export TAVILY_API_KEY="..."            # optional
-export SCRAPE_CREATORS_API_KEY="..."   # optional
+security add-generic-password -U -a "$USER" -s GEMINI_API_KEY          -w 'AIza...'
+security add-generic-password -U -a "$USER" -s TAVILY_API_KEY          -w 'tvly-...'   # optional
+security add-generic-password -U -a "$USER" -s SCRAPE_CREATORS_API_KEY -w '...'        # optional
 ```
+
+**2. Read them into env vars at session start.** Add this to `~/.zshrc` (or `~/.bashrc`) — it loads the keys without storing their values in the file:
+
+```
+for k in GEMINI_API_KEY TAVILY_API_KEY SCRAPE_CREATORS_API_KEY; do
+  v=$(security find-generic-password -a "$USER" -s "$k" -w 2>/dev/null) && export "$k=$v"
+done
+unset k v
+```
+
+The first time this runs, macOS prompts to allow Keychain access — choose **Always Allow** so future sessions are quiet.
+
+> **Not on macOS?** Keep the keys in a separate file your shell sources — e.g. `~/.config/ecom-static-ads/secrets.env` with `chmod 600` and gitignored — and add `[ -f ~/.config/ecom-static-ads/secrets.env ] && source ~/.config/ecom-static-ads/secrets.env` to `~/.bashrc`. Never commit the secrets file.
 
 > **Run it in Claude Code** (the Code tab of the desktop app, or the CLI) — it needs network access to reach Gemini, Tavily, and Scrape Creators. It won't run in Cowork's sandbox.
 
-If your keys aren't picked up in the Code tab, add them to `~/.claude/settings.json` under an `"env"` block — the Code tab reads that even when it can't see `~/.zshrc`.
+If your keys aren't picked up in the Code tab, the Code tab also reads an `"env"` block in `~/.claude/settings.json` even when it can't see `~/.zshrc`. That file stores values in plaintext, so prefer the Keychain approach above; if you must use it, treat `settings.json` like a secret and never commit it.
 
 ---
 
